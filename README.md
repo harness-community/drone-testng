@@ -83,8 +83,7 @@ Description: If true, the build will fail if any configuration method (e.g., @Be
 Example: true
 
 - `PLUGIN_PLUGIN_FAIL_IF_NO_RESULTS`
-Description: If true, the build will fail if no TestNG XML report files are found.
-Example: true
+Description: If true, the build will fail if no TestNG XML report files are found. Example: true
 
 - `LOG_LEVEL` debug/info Level defines the plugin log level. Set this to debug to see the response from NUnit
 
