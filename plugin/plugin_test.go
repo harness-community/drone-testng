@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"errors"
+	"path/filepath"
 	"sort"
 	"testing"
 
@@ -19,7 +20,7 @@ func TestLocateFiles(t *testing.T) {
 		{
 			name:     "ValidPatternWithFiles",
 			pattern:  "../testdata/*.xml",
-			expected: []string{`..\testdata\testng-report.xml`},
+			expected: []string{filepath.FromSlash("../testdata/testng-report.xml")},
 			err:      nil,
 		},
 		{
