@@ -406,7 +406,7 @@ func TestValidateUnstableThresholds(t *testing.T) {
 				ThresholdMode: 1, // Absolute mode
 			},
 			expectErr: true,
-			errMsg:    "\nBuild marked as UNSTABLE: number of failed tests (6) exceeded the unstable threshold (5)",
+			errMsg:    "\nBuild marked as fail: number of failed tests (6) exceeded the unstable threshold (5)",
 		},
 		{
 			name: "ExceededUnstableAbsoluteSkipThreshold",
@@ -421,7 +421,7 @@ func TestValidateUnstableThresholds(t *testing.T) {
 				ThresholdMode: 1, // Absolute mode
 			},
 			expectErr: true,
-			errMsg:    "\nBuild marked as UNSTABLE: number of skipped tests (4) exceeded the unstable threshold (3)",
+			errMsg:    "\nBuild marked as fail: number of skipped tests (4) exceeded the unstable threshold (3)",
 		},
 
 		// Percentage threshold tests
@@ -452,7 +452,7 @@ func TestValidateUnstableThresholds(t *testing.T) {
 				ThresholdMode: 2,  // Percentage mode
 			},
 			expectErr: true,
-			errMsg:    "\nBuild marked as UNSTABLE: failure rate (25.00%) exceeded the unstable threshold (20.00%)",
+			errMsg:    "\nBuild marked as fail: failure rate (25.00%) exceeded the unstable threshold (20.00%)",
 		},
 		{
 			name: "ExceededUnstablePercentageSkipThreshold",
@@ -467,7 +467,7 @@ func TestValidateUnstableThresholds(t *testing.T) {
 				ThresholdMode: 2,  // Percentage mode
 			},
 			expectErr: true,
-			errMsg:    "\nBuild marked as UNSTABLE: skip rate (25.00%) exceeded the unstable threshold (20.00%)",
+			errMsg:    "\nBuild marked as fail: skip rate (25.00%) exceeded the unstable threshold (20.00%)",
 		},
 	}
 
