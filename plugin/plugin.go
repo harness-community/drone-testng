@@ -62,20 +62,54 @@ func Exec(ctx context.Context, args Args) error {
 		return errors.New("no TestNG XML report files found. Check the report file pattern")
 	}
 
+	// var aggregatedResults Results
+	// var skippedFiles []string
+
+	// for _, file := range files {
+	// 	results, err := processFile(file)
+	// 	if err != nil {
+	// 		logrus.WithField("File", file).WithError(err).Warn("Skipping file due to errors")
+	// 		skippedFiles = append(skippedFiles, file)
+	// 		continue // Skip this file and process others
+	// 	}
+	// 	aggregatedResults.Total += results.Total
+	// 	aggregatedResults.Failures += results.Failures
+	// 	aggregatedResults.Skipped += results.Skipped
+	// 	aggregatedResults.DurationMS += results.DurationMS
+	// }
+
+	var (
+		resultsChan = make(chan Results, len(files))
+		errorsChan  = make(chan error, len(files))
+	)
+
+	for _, file := range files {
+		go func(f string) {
+			res, err := processFile(f)
+			if err != nil {
+				errorsChan <- fmt.Errorf("failed to process file %s: %w", f, err)
+				return
+			}
+			resultsChan <- res
+		}(file)
+	}
+
 	var aggregatedResults Results
 	var skippedFiles []string
 
-	for _, file := range files {
-		results, err := processFile(file)
-		if err != nil {
-			logrus.WithField("File", file).WithError(err).Warn("Skipping file due to errors")
-			skippedFiles = append(skippedFiles, file)
-			continue // Skip this file and process others
+	for i := 0; i < len(files); i++ {
+		select {
+		case res := <-resultsChan:
+			aggregatedResults.Total += res.Total
+			aggregatedResults.Failures += res.Failures
+			aggregatedResults.Skipped += res.Skipped
+			aggregatedResults.DurationMS += res.DurationMS
+		case err := <-errorsChan:
+			logrus.Warn(err)
+			if e, ok := err.(*os.PathError); ok {
+				skippedFiles = append(skippedFiles, e.Path)
+			}
 		}
-		aggregatedResults.Total += results.Total
-		aggregatedResults.Failures += results.Failures
-		aggregatedResults.Skipped += results.Skipped
-		aggregatedResults.DurationMS += results.DurationMS
 	}
 
 	// Log skipped files

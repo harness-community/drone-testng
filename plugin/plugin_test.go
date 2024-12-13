@@ -55,7 +55,7 @@ func TestLocateFiles(t *testing.T) {
 		{
 			name:     "ValidPatternWithFiles",
 			pattern:  "../testdata/*.xml",
-			expected: []string{filepath.FromSlash("../testdata/invalid-suite.xml"), filepath.FromSlash("../testdata/invalid.xml"), filepath.FromSlash("../testdata/testng-report.xml")},
+			expected: []string{filepath.FromSlash("../testdata/invalid-suite.xml"), filepath.FromSlash("../testdata/invalid.xml"), filepath.FromSlash("../testdata/testng-report.xml"), filepath.FromSlash("../testdata/testng-report-valid.xml")},
 			err:      "",
 		},
 		{
@@ -332,7 +332,7 @@ func TestValidateThresholds(t *testing.T) {
 func TestExecWithMixedFiles(t *testing.T) {
 	args := Args{
 		ReportFilenamePattern: "../testdata/*.xml",
-		FailedFails:           2,
+		FailedFails:           4,
 		FailedSkips:           1,
 		ThresholdMode:         ThresholdModeAbsolute,
 	}
@@ -560,5 +560,90 @@ func TestAggregateClassResultsWithInvalidDuration(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("Expected log entry not found: %s", expectedLog)
+	}
+}
+
+func TestExecWithMixedValidAndInvalidFiles(t *testing.T) {
+	args := Args{
+		ReportFilenamePattern: "../testdata/*.xml", // Adjust this path as necessary
+		FailedFails:           4,
+		FailedSkips:           1,
+		ThresholdMode:         ThresholdModeAbsolute,
+	}
+
+	// Mock a list of valid and invalid files for processing
+	validFiles := []string{
+		filepath.FromSlash("../testdata/testng-report.xml"),
+		filepath.FromSlash("../testdata/testng-report-valid.xml"),
+	}
+	invalidFiles := []string{
+		filepath.FromSlash("../testdata/invalid.xml"),
+		filepath.FromSlash("../testdata/invalid-suite.xml"),
+	}
+
+	// Combine valid and invalid files into a test case
+	files := append(validFiles, invalidFiles...)
+
+	// Expected number of results and errors
+	expectedValidResults := 6 // 3 tests in each valid file (2 files)
+	expectedInvalidFiles := 2 // The two invalid files should be skipped
+	expectedFailedTests := 3  // Both valid files contain 1 failed test each
+
+	// Create channels for results and errors
+	resultsChan := make(chan Results, len(files))
+	errorsChan := make(chan error, len(files))
+
+	// Start processing files in parallel
+	for _, file := range files {
+		go func(f string) {
+			res, err := processFile(f)
+			if err != nil {
+				errorsChan <- fmt.Errorf("failed to process file %s: %w", f, err)
+				return
+			}
+			resultsChan <- res
+		}(file)
+	}
+
+	var aggregatedResults Results
+	var skippedFiles []string
+
+	// Process results and errors
+	for i := 0; i < len(files); i++ {
+		select {
+		case res := <-resultsChan:
+			// Only aggregate results from valid files
+			if res.Total > 0 {
+				aggregatedResults.Total += res.Total
+				aggregatedResults.Failures += res.Failures
+				aggregatedResults.Skipped += res.Skipped
+				aggregatedResults.DurationMS += res.DurationMS
+			}
+		case err := <-errorsChan:
+			logrus.Warn(err)
+			skippedFiles = append(skippedFiles, err.Error())
+		}
+	}
+
+	// Assert that the number of skipped files matches the expected invalid files
+	if len(skippedFiles) != expectedInvalidFiles {
+		t.Errorf("Expected %d skipped files, got %d", expectedInvalidFiles, len(skippedFiles))
+	}
+
+	// Assert that valid files were processed and aggregated results are correct
+	if aggregatedResults.Total-aggregatedResults.Failures != expectedValidResults {
+		t.Errorf("Expected %d total tests processed, got %d", expectedValidResults, aggregatedResults.Total)
+	}
+
+	// Assert that the number of failed tests matches the expected value
+	if aggregatedResults.Failures != expectedFailedTests {
+		t.Errorf("Expected %d failed tests, got %d", expectedFailedTests, aggregatedResults.Failures)
+	}
+
+	// If no error occurred during execution, validate thresholds
+	if err := validateThresholds(aggregatedResults, args); err != nil {
+		t.Errorf("Threshold validation failed: %v", err)
+	} else {
+		t.Log("Threshold validation passed successfully.")
 	}
 }
