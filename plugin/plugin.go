@@ -62,22 +62,6 @@ func Exec(ctx context.Context, args Args) error {
 		return errors.New("no TestNG XML report files found. Check the report file pattern")
 	}
 
-	// var aggregatedResults Results
-	// var skippedFiles []string
-
-	// for _, file := range files {
-	// 	results, err := processFile(file)
-	// 	if err != nil {
-	// 		logrus.WithField("File", file).WithError(err).Warn("Skipping file due to errors")
-	// 		skippedFiles = append(skippedFiles, file)
-	// 		continue // Skip this file and process others
-	// 	}
-	// 	aggregatedResults.Total += results.Total
-	// 	aggregatedResults.Failures += results.Failures
-	// 	aggregatedResults.Skipped += results.Skipped
-	// 	aggregatedResults.DurationMS += results.DurationMS
-	// }
-
 	var (
 		resultsChan = make(chan Results, len(files))
 		errorsChan  = make(chan error, len(files))
