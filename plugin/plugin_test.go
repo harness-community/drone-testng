@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
 )
 
 // LogEntry captures a single log entry.
@@ -522,44 +523,64 @@ func TestLogSuiteSummaryWithMockLogger(t *testing.T) {
 	}
 }
 
+// TestAggregateClassResultsWithInvalidDuration tests handling of invalid DurationMS and failed/skipped tests.
 func TestAggregateClassResultsWithInvalidDuration(t *testing.T) {
+	// Test data: Class with valid and invalid DurationMS
 	class := Class{
 		Name: "TestClass",
 		Tests: []Test{
 			{Name: "Test1", Status: "PASS", DurationMS: "10"},
 			{Name: "Test2", Status: "FAIL", DurationMS: "invalid"},
+			{Name: "Test3", Status: "SKIP", DurationMS: "5"},
 		},
 	}
 
-	// Setup mock log hook
-	hook := NewMockLogHook()
-	logrus.AddHook(hook)
+	// Setup a logrus test hook to capture logs
+	logger, hook := test.NewNullLogger()
+	logrus.SetOutput(logger.Writer())
+	logrus.SetLevel(logrus.WarnLevel)
 
-	// Call the aggregation function
-	results := aggregateClassResults(class)
+	// Call the function to aggregate class results
+	results, failedTests, skippedTests := aggregateClassResults(class)
 
-	// Validate results
+	// Define the expected aggregated results
 	expectedResults := Results{
-		Total:      2,
-		Failures:   1,
-		Skipped:    0,
-		DurationMS: 10,
-	}
-	if diff := cmp.Diff(expectedResults, results); diff != "" {
-		t.Errorf("aggregateClassResults() mismatch (-want +got):\n%s", diff)
+		Total:      3,  // Total tests: 3
+		Failures:   1,  // 1 failed test
+		Skipped:    1,  // 1 skipped test
+		DurationMS: 15, // Duration only includes Test1 (valid DurationMS)
 	}
 
-	// Validate logs
-	expectedLog := "Invalid or missing DurationMS for test 'Test2'"
+	// Define expected failed and skipped test names
+	expectedFailedTests := []string{"Test2"}
+	expectedSkippedTests := []string{"Test3"}
+
+	// Compare the actual and expected results
+	if diff := cmp.Diff(expectedResults, results); diff != "" {
+		t.Errorf("aggregateClassResultsWithNames() Results mismatch (-want +got):\n%s", diff)
+	}
+
+	// Compare the failed test names
+	if diff := cmp.Diff(expectedFailedTests, failedTests); diff != "" {
+		t.Errorf("Failed tests mismatch (-want +got):\n%s", diff)
+	}
+
+	// Compare the skipped test names
+	if diff := cmp.Diff(expectedSkippedTests, skippedTests); diff != "" {
+		t.Errorf("Skipped tests mismatch (-want +got):\n%s", diff)
+	}
+
+	// Validate the log for invalid DurationMS
+	expectedLogMessage := "Invalid or missing DurationMS for test 'Test2'"
 	found := false
-	for _, entry := range hook.Entries {
-		if strings.Contains(entry.Message, expectedLog) {
+	for _, entry := range hook.AllEntries() {
+		if strings.Contains(entry.Message, expectedLogMessage) {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Errorf("Expected log entry not found: %s", expectedLog)
+		t.Errorf("Expected log message not found: %s", expectedLogMessage)
 	}
 }
 

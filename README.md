@@ -61,8 +61,27 @@ Description: Maximum number of skipped tests before the build is marked as FAILU
 Example: 3
 
 - `PLUGIN_THRESHOLD_MODE`: (Optional) Specifies the mode for threshold validation:
-  - `absolute`: Validates against absolute values of failures and skips.
-  - `percentage`: Validates against percentage values of failures and skips.
+  - `absolute`: In this mode, the thresholds are validated against specific counts of failed and skipped tests.
+  - `percentage`: In this mode, the thresholds are validated against percentage values of failed and skipped tests relative to the total tests executed.
+  - Example: 
+  ```
+  - step:
+    identifier: testng80776e
+    type: Plugin
+    name: testng
+    spec:
+      connectorRef: nunitdockerconnector
+      image: mamid1b/testng
+      settings:
+        failed_fails: "10"                     # Threshold for failure rate in percentage
+        failed_skips: "100"                    # Threshold for skip rate in percentage
+        failure_on_failed_test_config: "false"
+        level: info
+        report_filename_pattern: ./testng-report.xml
+        threshold_mode: percentage
+  ```
+  - The configured failure threshold is 10%, and the actual failure rate (28.57%) exceeds this limit.
+  - Since the threshold_mode is percentage, the plugin fails based on the percentage validation.
   - Default: `absolute`.
 
 - `PLUGIN_FAILURE_ON_FAILED_TEST_CONFIG`

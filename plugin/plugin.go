@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 )
@@ -193,13 +194,13 @@ func processFile(filename string) (Results, error) {
 
 	// Validate structure
 	if len(report.Suites) == 0 {
-		logrus.Warnf("File %s contains no test suites in the XML structure", filename)
+		logrus.Infof("File %s contains no test suites in the XML structure", filename)
 		return Results{}, fmt.Errorf("no test suites found in the XML structure of file: %s", filename)
 	}
 
 	for _, suite := range report.Suites {
 		if len(suite.Classes) == 0 {
-			logrus.Warnf("Suite '%s' in file %s contains no test classes", suite.Name, filename)
+			logrus.Infof("Suite '%s' in file %s contains no test classes", suite.Name, filename)
 		}
 	}
 
@@ -210,51 +211,77 @@ func processFile(filename string) (Results, error) {
 // logTestNGReportDetails logs the details of a TestNG report and returns the aggregated results.
 func logTestNGReportDetails(report TestNGReport) Results {
 	results := Results{}
+	var failedTests []string
+	var skippedTests []string
 
 	// Aggregate data across all suites
 	for _, suite := range report.Suites {
-		suiteResults := aggregateSuiteResults(suite)
+		suiteResults, failed, skipped := aggregateSuiteResults(suite)
 		results.Total += suiteResults.Total
 		results.Failures += suiteResults.Failures
 		results.Skipped += suiteResults.Skipped
 		results.DurationMS += suiteResults.DurationMS
 
+		failedTests = append(failedTests, failed...)
+		skippedTests = append(skippedTests, skipped...)
+
 		// Log suite summary
 		logSuiteSummary(suite.Name, suiteResults)
-
 		// Log groups and test details
 		logSuiteGroups(suite)
 		logSuiteTestDetails(suite)
 	}
 
-	return results
-}
-
-// aggregateSuiteResults aggregates test results for a suite.
-func aggregateSuiteResults(suite Suite) Results {
-	results := Results{}
-
-	for _, class := range suite.Classes {
-		classResults := aggregateClassResults(class)
-		results.Total += classResults.Total
-		results.Failures += classResults.Failures
-		results.Skipped += classResults.Skipped
-		results.DurationMS += classResults.DurationMS
+	// Log aggregated results with failed and skipped test names
+	if len(failedTests) > 0 {
+		logrus.Infof("\nTest case Failures: %s", formatTestNames(failedTests))
+	}
+	if len(skippedTests) > 0 {
+		logrus.Infof("\nTest case Skips: %s", formatTestNames(skippedTests))
 	}
 
 	return results
 }
 
-// aggregateClassResults aggregates test results for a class.
-func aggregateClassResults(class Class) Results {
+// formatTestNames formats test names as a comma-separated string.
+func formatTestNames(names []string) string {
+	return strings.Join(names, ", ")
+}
+
+// aggregateSuiteResults aggregates test results for a suite.
+func aggregateSuiteResults(suite Suite) (Results, []string, []string) {
 	results := Results{}
+	var failedTests []string
+	var skippedTests []string
+
+	for _, class := range suite.Classes {
+		classResults, failed, skipped := aggregateClassResults(class)
+		results.Total += classResults.Total
+		results.Failures += classResults.Failures
+		results.Skipped += classResults.Skipped
+		results.DurationMS += classResults.DurationMS
+
+		failedTests = append(failedTests, failed...)
+		skippedTests = append(skippedTests, skipped...)
+	}
+
+	return results, failedTests, skippedTests
+}
+
+// aggregateClassResults aggregates test results for a class.
+func aggregateClassResults(class Class) (Results, []string, []string) {
+	results := Results{}
+	var failedTests []string
+	var skippedTests []string
 
 	for _, test := range class.Tests {
 		results.Total++
 		if test.Status == "FAIL" {
 			results.Failures++
+			failedTests = append(failedTests, test.Name)
 		} else if test.Status == "SKIP" {
 			results.Skipped++
+			skippedTests = append(skippedTests, test.Name)
 		}
 
 		// Handle invalid or missing DurationMS
@@ -266,7 +293,7 @@ func aggregateClassResults(class Class) Results {
 		results.DurationMS += duration
 	}
 
-	return results
+	return results, failedTests, skippedTests
 }
 
 // logSuiteSummary logs a summary for a suite.

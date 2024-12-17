@@ -38,7 +38,7 @@ func main() {
 
 	// Execute the plugin logic
 	if err := plugin.Exec(context.Background(), args); err != nil {
-		logrus.Fatalf("\nPlugin execution failed: %s", err)
+		logrus.Fatalf("\nPlugin execution failed")
 	}
 
 	logrus.Info("\nPlugin execution completed successfully")
