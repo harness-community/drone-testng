@@ -535,45 +535,46 @@ func TestAggregateClassResultsWithInvalidDuration(t *testing.T) {
 		},
 	}
 
-	// Setup a logrus test hook to capture logs
-	logger, hook := test.NewNullLogger()
-	logrus.SetOutput(logger.Writer())
+	// Setup a global log hook to capture logs
+	hook := test.NewGlobal()
 	logrus.SetLevel(logrus.WarnLevel)
+	logrus.SetFormatter(&logrus.TextFormatter{DisableColors: true, FullTimestamp: false})
 
 	// Call the function to aggregate class results
 	results, failedTests, skippedTests := aggregateClassResults(class)
 
 	// Define the expected aggregated results
 	expectedResults := Results{
-		Total:      3,  // Total tests: 3
-		Failures:   1,  // 1 failed test
-		Skipped:    1,  // 1 skipped test
-		DurationMS: 15, // Duration only includes Test1 (valid DurationMS)
+		Total:      3,
+		Failures:   1,
+		Skipped:    1,
+		DurationMS: 15,
 	}
 
-	// Define expected failed and skipped test names
+	// Expected failed and skipped test names
 	expectedFailedTests := []string{"Test2"}
 	expectedSkippedTests := []string{"Test3"}
 
-	// Compare the actual and expected results
+	// Validate results
 	if diff := cmp.Diff(expectedResults, results); diff != "" {
-		t.Errorf("aggregateClassResultsWithNames() Results mismatch (-want +got):\n%s", diff)
+		t.Errorf("Results mismatch (-want +got):\n%s", diff)
 	}
 
-	// Compare the failed test names
+	// Validate failed tests
 	if diff := cmp.Diff(expectedFailedTests, failedTests); diff != "" {
 		t.Errorf("Failed tests mismatch (-want +got):\n%s", diff)
 	}
 
-	// Compare the skipped test names
+	// Validate skipped tests
 	if diff := cmp.Diff(expectedSkippedTests, skippedTests); diff != "" {
 		t.Errorf("Skipped tests mismatch (-want +got):\n%s", diff)
 	}
 
-	// Validate the log for invalid DurationMS
+	// Validate the log message for invalid DurationMS
 	expectedLogMessage := "Invalid or missing DurationMS for test 'Test2'"
 	found := false
 	for _, entry := range hook.AllEntries() {
+		t.Logf("Captured log: %s", entry.Message) // Debugging log output
 		if strings.Contains(entry.Message, expectedLogMessage) {
 			found = true
 			break
