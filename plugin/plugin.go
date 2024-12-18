@@ -235,10 +235,10 @@ func logTestNGReportDetails(report TestNGReport) Results {
 	// Log aggregated results with failed and skipped test names
 	logrus.Infof("\n===============================================")
 	if len(failedTests) > 0 {
-		logrus.Infof("\nTest case Failures: %s", formatTestNames(failedTests))
+		logrus.Infof("\nFailed Test cases: %s", formatTestNames(failedTests))
 	}
 	if len(skippedTests) > 0 {
-		logrus.Infof("\nTest case Skips: %s", formatTestNames(skippedTests))
+		logrus.Infof("\nSkipped Test cases: %s", formatTestNames(skippedTests))
 	}
 
 	return results
